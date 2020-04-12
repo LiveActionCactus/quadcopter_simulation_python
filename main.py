@@ -5,11 +5,11 @@
 
 # Resources
 # https://cs231n.github.io/python-numpy-tutorial/
-#
+# https://github.com/yrlu/quadrotor
 #
 
 import numpy as np
-
+import scipy.integrate
 
 # noinspection SpellCheckingInspection
 class Quadcopter:
@@ -90,9 +90,13 @@ class Quadcopter:
 			pos = cur_pos + (0.5) * cur_time * vel
 			acc = np.zeros(3)
 		assert cur_time >= 0, "Current time is less than zero in trajectory"
-		new_des_state = np.concatenate((pos, vel, acc))
+		#new_des_state = np.concatenate((pos, vel, acc))
+		self._desired_state[0:3] = pos
+		self._desired_state[3:6] = vel
+		self._desired_state[6:9] = acc
 
-		return new_des_state
+		# TODO: sync the "new_des_state" to "self._desired_state" and put this function into run_sim
+		#return new_des_state
 
 	def pid_controller(self):
 		# define the basic nested PID controller for the quadcopter
@@ -121,7 +125,7 @@ class Quadcopter:
 
 		return thrust, moment
 
-	def equations_of_motion(self, state, controller_thrust, angular_force):
+	def equations_of_motion(self, controller_thrust, angular_force):
 		# define the quadcopter dynamics time step update
 		assert str(np.shape(angular_force)) == "(3,)", "Incorrect moment matrix dimensions"
 		forces = np.array([controller_thrust, angular_force[0], angular_force[1]]) 					# excludes the yaw force from physical limitations
@@ -131,6 +135,7 @@ class Quadcopter:
 		new_ang_force = np.append(np.matmul(self._quad_properties["limitsB"][1:3], prop_thrust_limited), angular_force[2]) 						# 3x1
 
 		# assign variables from the state array
+		state = self._state
 		x = state[0]
 		y = state[1]
 		z = state[2]
@@ -147,7 +152,7 @@ class Quadcopter:
 
 		# Orientation
 		quat = np.array([qw, qx, qy, qz])
-		bRw = Quadcopter.quat2rot(quat) 													# 3x3
+		bRw = Quadcopter.quat2rot(quat) 											# 3x3
 		wRb = np.transpose(bRw) 													# 3x3
 
 		# Linear Acceleration
@@ -195,13 +200,20 @@ class Quadcopter:
 
 		return statedot 					# 13x1
 
+	def run_sim(self):
+		# trajectory update (need time?)
+		self.simple_line_trajectory(quad._state[0:3], quad.set_desired_state[0:3], 10, time)  # start, end, desired finish time, current time,
+		thrust, moment = self.pid_controller()  # None
+		statedot = self.equations_of_motion(thrust, moment)  # controller_thrust, angular_force
+
+		return statedot
 
 #
 # Run simulation
 #
 
 # Set simulation parameters
-sim_steps = 100
+sim_steps = 50
 tstep = 0.01
 cstep = 0.05
 start_time = 0
@@ -213,13 +225,17 @@ quad_list = []
 start_pos = np.array([0.0, 0.0, 1.0, 0, 0, 0])
 end_pos = np.array([1.0, 0.0, 1.5])
 
+xtraj = []
+
 quad = Quadcopter(start_pos, end_pos)
 for itr in range(1,sim_steps):
-	#timeint = time:tstep:time+cstep
 	timeint = np.arange(time, time+cstep, tstep)
-	print(timeint)
-	#ode45
 	time += cstep
+	time = round(time, 2)
+
+	state2 = scipy.integrate.RK45(lambda state: quad._run_sim(time), timeint, quad._state, 1.0)
+	print(state2)
+	# [tsave, xsave] = ode45(@(t,s) quadEOM(t, s, qn, controlhandle, trajhandle, params), timeint, x{qn});
 
 	# TODO: terminate check
 	# TODO: plotting

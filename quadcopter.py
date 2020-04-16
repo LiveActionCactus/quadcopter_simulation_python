@@ -39,6 +39,7 @@ class Quadcopter:
 		})
 		self._state = Quadcopter.set_initial_state(initial_state)
 		self._desired_state = Quadcopter.set_desired_state(desired_state)
+		self._goal = np.array(self._desired_state) 							# necessary since by default python assigns by reference
 
 	# Helper methods
 	@staticmethod
@@ -49,7 +50,7 @@ class Quadcopter:
 	@staticmethod
 	def set_desired_state(s):
 		# x, y, z, xd, yd, zd, xdd, ydd, zdd, yaw, yawd
-		return np.array([s[0], s[1], s[2], 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+		return np.array([s[0], s[1], s[2], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
 	@staticmethod
 	def quat2rot(quat):
@@ -116,7 +117,7 @@ class Quadcopter:
 
 		return thrust, moment
 
-	def equations_of_motion(self, state, controller_thrust, angular_force):
+	def equations_of_motion(self, controller_thrust, angular_force):
 		# define the quadcopter dynamics time step update
 		assert str(np.shape(angular_force)) == "(3,)", "Incorrect moment matrix dimensions"
 		forces = np.array([controller_thrust, angular_force[0], angular_force[1]]) 					# excludes the yaw force from physical limitations
@@ -126,6 +127,7 @@ class Quadcopter:
 		new_ang_force = np.append(np.matmul(self._quad_properties["limitsB"][1:3], prop_thrust_limited), angular_force[2]) 						# 3x1
 
 		# assign variables from the state array
+		state = self._state
 		x = state[0]
 		y = state[1]
 		z = state[2]
@@ -189,3 +191,17 @@ class Quadcopter:
 		assert str(np.shape(statedot)) == "(13,)", "statedot is of the wrong dimension"
 
 		return statedot 					# 13x1
+
+	def simulation_step(self, s=0, t=0, total_sim_time=0):
+		self._state = s
+		assert str(np.shape(self._state)) == "(13,)", "Incorrect state vector size in simulation_step: {}".format(np.shape(self._state))
+		assert str(np.shape(self._desired_state)) == "(11,)", "Incorrect desired state vector size in simulation_step: {}".format(np.shape(self._desired_state))
+		assert str(np.shape(self._goal)) == "(11,)", "Incorrect goal vector size in simulation_step: {}".format(np.shape(self._goal))
+
+		# This is where the lego blocks go together. Change trajectories, controllers, and dynamics here.
+		new_des_state = self.simple_line_trajectory(self._state[0:3], self._goal[0:3], total_sim_time, t)
+		self._desired_state[0:9] = new_des_state
+		thrust, moment = self.pid_controller()
+		statedot = self.equations_of_motion(thrust, moment)
+
+		return statedot

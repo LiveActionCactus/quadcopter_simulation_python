@@ -43,42 +43,38 @@ step_size = int(cstep/tstep)
 assert int(cstep % tstep) == 0, "Step size is not evenly divisible"
 # TODO: encapsulate plotting for quadcopter outputs, expand simulation loop to include multiple vehicles
 # TODO: resizer utility function for logging arrays, break the simulation loop when the error converges (for each quad and total metric)
+# TODO: plotting the vehicle, real-time and sped up
 for itr in range(0, int(sim_steps/step_size)):
     timeint = np.arange(time, time + cstep, tstep)
     save_state = integrate.odeint(lambda s, t: quad.simulation_step(s, t, 10), quad._state, timeint, printmessg=1)          # func(y,t), y0, t,
     time += cstep
 
     print((itr*step_size)+5)
-    state_data[(itr*step_size):(itr*step_size)+5] = save_state[0:5]
+    state_data[(itr*step_size):(itr*step_size)+5] = save_state[0:5]         # TODO: change "save_state[0:5] to "save_state[0:step_size]"
     time_data[itr] = time
-    err_data[itr] = np.linalg.norm(end_pos - save_state[3, 0:3])
+    err = np.linalg.norm(end_pos - save_state[3, 0:3])
+    err_data[itr] = err
+
+    if err < 0.1:
+        break
 
 print(err_data)
 
-fig = plt.figure()
-ax = plt.axes()
-ax.plot(time_data, err_data)
-ax.set_xlabel("Time (s)")
-ax.set_ylabel("State Error")
-ax.set_title("State Error vs Time")
-plt.show()
+# np.savetxt("states.csv", state_data, delimiter=",")
+# np.savetxt("times.csv", time_data, delimiter=",")
 
-# timeint = np.arange(time, time + cstep, tstep)
+def plot_state_pos_err(err_data):
+    fig = plt.figure()
+    ax = plt.axes()
+    ax.plot(time_data, err_data)
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("State Error")
+    ax.set_title("State Error vs Time")
+    plt.show()
 
 
 
 
-# y =
-
-# for itr in range(1,sim_steps):
-# 	#timeint = time:tstep:time+cstep
-# 	timeint = np.arange(time, time+cstep, tstep)
-# 	print(timeint)
-# 	time += cstep
-# 	break
-#
-# 	# TODO: terminate check for simulation results
-# 	# TODO: plotting
 
 
 # # TESTING

@@ -5,7 +5,8 @@
 
 # Resources
 # https://cs231n.github.io/python-numpy-tutorial/
-#
+# https://github.com/yrlu/quadrotor
+# https://github.com/hbd730/quadcopter-simulation
 #
 
 import numpy as np
@@ -13,6 +14,7 @@ from scipy import integrate
 import testing
 import quadcopter
 import matplotlib.pyplot as plt
+import plotting
 
 # TODO: build unit tests to make sure our asserts are catching errors
 # TODO: build unit tests to make sure data of the correct bounds and dimension are going into each function
@@ -22,7 +24,7 @@ import matplotlib.pyplot as plt
 #
 
 # Set simulation parameters
-sim_steps = 1000
+sim_steps = 600
 tstep = 0.01
 cstep = 0.05
 start_time = 0
@@ -44,9 +46,15 @@ assert int(cstep % tstep) == 0, "Step size is not evenly divisible"
 # TODO: encapsulate plotting for quadcopter outputs, expand simulation loop to include multiple vehicles
 # TODO: resizer utility function for logging arrays, break the simulation loop when the error converges (for each quad and total metric)
 # TODO: plotting the vehicle, real-time and sped up
+# TODO: ensure that the attitude control loop is running faster than the trajectory one (200-400Hz vs 100Hz), have this as a tunable parameter
+# TODO: build class for quaternion operations
+# https://github.com/hbd730/quadcopter-simulation/blob/master/utils/quaternion.py
+# TODO: have a swappable position solution (MoCap @ 300/400Hz, GPS @ 1-5Hz)
+
+# TODO: have each quadcopter object keep track of their states and attitude/position loop rates (main sets step size), so each quad solves their state update using odeint in an "update()" method
 for itr in range(0, int(sim_steps/step_size)):
     timeint = np.arange(time, time + cstep, tstep)
-    save_state = integrate.odeint(lambda s, t: quad.simulation_step(s, t, 10), quad._state, timeint, printmessg=1)          # func(y,t), y0, t,
+    save_state = integrate.odeint(lambda s, t: quad.simulation_step(s, t, 10), quad._state, timeint, printmessg=False)          # func(y,t), y0, t,
     time += cstep
 
     print((itr*step_size)+5)
@@ -58,11 +66,16 @@ for itr in range(0, int(sim_steps/step_size)):
     if err < 0.1:
         break
 
-print(err_data)
+plot = plotting.QuadPlot(state_data)
+plot.plot_quad_3d()
+
+# print(err_data)
 
 # np.savetxt("states.csv", state_data, delimiter=",")
 # np.savetxt("times.csv", time_data, delimiter=",")
 
+
+# TODO: figure out what to do with the "analysis" functions, maybe have a new class for analysis
 def plot_state_pos_err(err_data):
     fig = plt.figure()
     ax = plt.axes()
@@ -73,7 +86,7 @@ def plot_state_pos_err(err_data):
     plt.show()
 
 
-
+# plot_state_pos_err(err_data)
 
 
 

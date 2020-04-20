@@ -52,6 +52,7 @@ class Quadcopter:
 		# x, y, z, xd, yd, zd, xdd, ydd, zdd, yaw, yawd
 		return np.array([s[0], s[1], s[2], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
+	# TODO: encapsulte in quaternion class
 	@staticmethod
 	def quat2rot(quat):
 		# converts a quaternion to a rotation matrix, result in in body frame
@@ -144,17 +145,18 @@ class Quadcopter:
 
 		# Orientation
 		quat = np.array([qw, qx, qy, qz])
-		bRw = Quadcopter.quat2rot(quat) 													# 3x3
-		wRb = np.transpose(bRw) 													# 3x3
+		bRw = Quadcopter.quat2rot(quat) 											# 3x3
+		wRb = np.transpose(bRw) 													# 3x3, transforms body frame to world frame
 
 		# Linear Acceleration
 		z_thrust = np.array([0, 0, new_thrust]) 									# 3x1
 		downward_force = np.array([0, 0, (self._quad_properties["mass"]*self._quad_properties["gravity"])]) 	# 3x1
-		linear_accel = 1 / self._quad_properties["mass"] * (np.matmul(wRb, z_thrust) - downward_force) 			# 3x1
+		linear_accel = 1 / self._quad_properties["mass"] * (np.matmul(wRb, z_thrust) - downward_force) 			# 3x1, in world frame
 
 		# Constraint quaternion (must have norm of 1)
 		quat_err = 1 - np.sum(np.square(quat)) 										# 1x1
 		# TODO: implement skew symmetric matrix check
+		# TODO: encapsulte in quaternion class
 		# symmetric check: (arr.transpose() == arr).all()
 		# skew symmetric check: (arr.transpose() == -arr).all()
 

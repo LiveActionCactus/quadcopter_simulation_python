@@ -1,30 +1,42 @@
+# Creates and visual animation of quadcopter state information
+#
+# By: Patrick Ledzian
+# Date: 18 Apr 2020
+
+"""
+Creates and plays an animation of a 13-state quadcopter simulation. Works along with the quadcopter class descriptor
+found in quadcopter.py.
+"""
+
+# External Libraries
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import mpl_toolkits.mplot3d.axes3d as p3
 import time
 
+# Project Libraries
 import quadcopter
 
-states = open("states.csv", "r")
-times = open("times.csv", "r")
-
-# state_data_test = np.genfromtxt(states, delimiter=",")
-# state_data_test = np.transpose(state_data_test[0:800, :])
-# # TODO: set the plotting sample rate in code, need to think about this a bit (falls in category with pos/att asynchronicity)
-# state_data_test = state_data_test[:, ::8]                       # down-sampling is important!
-# time_data_test = np.genfromtxt(times, delimiter=",")
-# num_data_points = np.shape(time_data_test)[0]
-
-
-# TODO: have this class inherit from Quadcopter() to get it's properties
+# TODO: set the plotting sample rate in code, need to think about this a bit (falls in category with pos/att asynchronicity)
+# TODO: maybe have this class inherit from Quadcopter() to get it's properties, is that necessary? Currently using Quadcopter() static methods
 # TODO: do I need a quaternion class to encapsulate it's functionality? (maybe when I add the non-linear controller?) could have a bunch of static methods
-# TODO: add waypointing
-# TODO: add trajectory ghost line to track in gray (see how close we get) show error metric
-# TODO: link the plotting functionality to the Quacopter class
+# TODO: add pre-plotting of waypoints
+# TODO: add trajectory ghost line to track in gray (see how close we get), have error metric plotting (maybe as part of analysis class?)
 # TODO: allow the QuadPlot class to plot multiple vehicles at once
+# TODO: link the plotting functionality to the Quacopter class in some way, better for multi-agent animations
+# TODO: save animation to file, put on GitHub home
+
+
 class QuadPlot:
+    """
+    Class descriptor of a quadcopter animation object. Allows for animation of historical quadcopter state information.
+    """
     def __init__(self, sim_state_data):
+        """
+        Class constructor
+        :param sim_state_data: 13xN array of state information (will become Qx13xN for multi-vehicle case)
+        """
         if str(np.shape(sim_state_data)[0]) == "13":
             pass
         elif str(np.shape(sim_state_data)[1]) == "13":
@@ -34,39 +46,51 @@ class QuadPlot:
 
         sim_state_data = sim_state_data[:, ::8]                 # TODO: handle the downsampling in the main.py file, it's a simulation spec
 
+        # initialize the 3-D animation/plotting structure
         fig = plt.figure()
         ax = p3.Axes3D(fig)
         data = np.array([[sim_state_data[0, :], sim_state_data[1, :], sim_state_data[2, :]]])
 
         # declare line objects
-        ax.plot([], [], [], '-', c='cyan')[0]                                   # quad arm
-        ax.plot([], [], [], '-', c='red')[0]                                    # quad arm
-        ax.plot([], [], [], '-', c='blue', marker='o', markevery=2)[0]          # quad center
-        ax.plot([], [], [], '.', c='red', markersize=3)[0]                      # waypoints
-        ax.plot([], [], [], '.', c='blue', markersize=2)[0]                     # trailing line
+        ax.plot([], [], [], '-', c='darkred')[0]                                   # quad arm
+        ax.plot([], [], [], '-', c='midnightblue')[0]                                    # quad arm
+        ax.plot([], [], [], '-', c='darkgrey', marker='o', markersize=1, markevery=3)[0]          # quad center
+        ax.plot([], [], [], '.', c='red', markersize=1)[0]                      # waypoints
+        ax.plot([], [], [], '.', c='gold', markersize=2)[0]                     # trailing line
         ax.view_init(elev=30.0, azim=285)
         ax.dist = 12.0
 
-        self._q1_pos_obj = [ax.plot(dat[0:1, 0], dat[0:1, 1], dat[0:1, 2])[0] for dat in data]
+        self._q1_pos_obj = [ax.plot(dat[0:1, 0], dat[0:1, 1], dat[0:1, 2])[0] for dat in data]      # create quadcopter "lines" plotting objects
         self.set_limits(1.0, 1.0, 3.0)
 
+        # save some information as properties for later use
         self._fig = fig
         self._pos_data = data
         self._full_state = sim_state_data
 
-    # main plotting function
     def plot_quad_3d(self):
+        """
+        Main plotting function, makes the FuncAnimation call that runs the animation using the update_quad() callback function.
+        :return:
+        """
         t = time.time()
         ani = animation.FuncAnimation(self._fig, self.update_quad, np.shape(self._pos_data)[2],
                                       fargs=(self._pos_data, self._q1_pos_obj),
                                       interval=1, blit=False, repeat=False)
         plt.show()
-        elapsed = time.time() - t
-        print(elapsed)
 
-    # animation helper functions
+    #
+    # Animation helper functions
+    #
+
     def set_limits(self, x, y, z):
-        # Setting the axes properties
+        """
+        Set initial figure boundaries in __init__(), labels the figure axes and title
+        :param x: (> 0) maximum x bound
+        :param y: (> 0) maximum y bound
+        :param z: (> 0) maximum z bound
+        :return: NONE, sets pre-existing figure properties
+        """
         ax = plt.gca()
         ax.set_xlim3d([0.0, x])  # x
         ax.set_ylim3d([0.0, y])  # y
@@ -82,13 +106,20 @@ class QuadPlot:
         pass
 
     def update_quad(self, itr, pos_data, pos_obj):
-        quad_pos_world = self.quad_pos_world(self._full_state[:, itr])
+        """
+        FuncAnimation() callback function that updates the lines in the the animation figure that was initialized in __init__()
+        :param itr: integer counter of the simulation step
+        :param pos_data: Qx3xN array of position data
+        :param pos_obj: [] array NOT IN USE, will be line object corresponding to each quadcopter
+        :return: NONE, sets pre-existing figure properties
+        """
+        quad_pos_world = self.quad_pos_world(self._full_state[:, itr])              # position in world frame coordinates
 
         ax = plt.gca()
-        lines = ax.get_lines()
-        lines_data = [quad_pos_world[:, [0, 2]], quad_pos_world[:, [1, 3]], quad_pos_world[:, [4, 5]]]
+        lines = ax.get_lines()          # 5 line objects per quadcopter [arm1, arm2, center of mass, waypoint, historical tail
+        lines_data = [quad_pos_world[:, [0, 2]], quad_pos_world[:, [1, 3]], quad_pos_world[:, [4, 5]]]      # pairs data with correct line object
 
-        # rotate quad arms
+        # plot world coordinates of quadcopter arms
         for line_obj, line_data in zip(lines[0:3], lines_data):
             x, y, z = line_data
             line_obj.set_data(x, y)
@@ -99,6 +130,13 @@ class QuadPlot:
         lines[4].set_3d_properties(pos_data[0, 2, :itr])
 
     def quad_pos_world(self, state, L=0.046, H=0.05):
+        """
+        Takes in quadcopter parameters and state information and returns the 3-D position in the world frame
+        :param state: 13x1 quadcopter state at a specific simulation iteration
+        :param L: length of quadcopter arm from center of mass in meters, assumes all arms are the same
+        :param H: height of the quadcoper in meters
+        :return: position of the vehicle in world frame
+        """
         pos = state[0:3]
         q = state[6:10]
         rot = quadcopter.Quadcopter.quat2rot(q)        # express quaternion rotation as a rotation matrix, ZXY rotation type
@@ -119,25 +157,3 @@ class QuadPlot:
         quad_pos_world = world_frame[0:3, :]
 
         return quad_pos_world
-
-
-
-# plot = QuadPlot()
-# plot.plot_quad_3d()
-
-
-
-
-# def __init__(self, state_data_test):
-#     self._state_data = state_data_test
-#     self._fig = plt.figure()
-#     ax = self._fig.add_axes([0, 0, 1, 1], projection='3d', label='quad_behavior')
-#     ax.view_init(elev=45.0, azim=70)
-#     ax.dist = 12.0
-#     self.set_limit((-3.0, 3.0), (-3.0, 3.0), (0.0, 5.0))
-#
-#     ax.plot([], [], [], '-', c='cyan')[0]
-#     ax.plot([], [], [], '-', c='red')[0]
-#     ax.plot([], [], [], '-', c='blue', marker='o', markevery=2)[0]
-#     ax.plot([], [], [], '.', c='red', markersize=4)[0]
-#     ax.plot([], [], [], '.', c='red', markersize=2)[0]

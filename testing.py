@@ -3,23 +3,40 @@
 # By: Patrick Ledzian
 # Date: 14 Apr 2020
 
+"""
+A testing class that will include different methods to test different aspects of the Quadcopter class. The goal here is
+to automate the testing of many of the performance metrics, where does the current modelling break down, and is it the
+modelling approach or is it the vehicle itself?
+"""
+
+# External Libraries
 import numpy as np
 import matplotlib.pyplot as plt
 import random
-from mpl_toolkits import mplot3d
 
+# Project Libraries
 from quadcopter import Quadcopter
 
-
 class QuadTest(Quadcopter):
+	"""
+	Defines some testing metrics and inherits from the Quadcopter class in quadcopter.py.
+	TODO: build out the quadcopter testing class
+	"""
 	_sim_params: dict
 
 	def __init__(self, sim_params={}, initial_state=np.zeros(6), desired_state=np.zeros(3)):
+		"""
+		Class constructor, defines input parameters for the super construction of the Quadcopter class
+		:param sim_params: user can specify, if not this is defined in the constructor
+		:param initial_state: 1x6 quadcopter position and orientation
+		:param desired_state: 1x3 desired quadcopter position
+		"""
 		super_initial_state = initial_state
 		super_desired_state = desired_state
 		super().__init__(initial_state=super_initial_state, desired_state=super_desired_state)
 		random.seed(1) 			# for stochastic disturbances
 
+		# TODO: create checking for the "sim_parameters" argument so that users fill in all needed values
 		if not bool(sim_params):
 			self._sim_params = {
 				"sim_steps": 100,
@@ -30,6 +47,12 @@ class QuadTest(Quadcopter):
 		assert len(self._sim_params) == 4, "self._sim_params initialized to incorrect size!"
 
 	def simple_line_traj_test(self):
+		"""
+		Plots the results of running the simple line trajectory. Visual inspection is important before asking the
+		vehicle to perform trajectories.
+		:return: NONE, outputs a plot of the trajectory (does not take into account quadcopter dynamics)
+		"""
+		# TODO: FIX THE TRAJECTORY
 		# test the trajectory output, assume perfect tracking
 		# TODO: include some sort of time analysis of the trajectory, velocity plots? overlay with acceleration?
 		traj_prev = self._state[0:3]

@@ -3,13 +3,27 @@
 # By: Patrick Ledzian
 # Date: 14 Apr 2020
 
+"""
+Class descriptor for a quadcopter object. Includes trajectory, controller, and dynamical equation modules. Calculates
+the state update in a single method which is integrated in main.py
+"""
+
+# External Libraries
 import numpy as np
 
 
 # noinspection SpellCheckingInspection
 class Quadcopter:
+	"""
+	Class descriptor for a quadcopter object
+	"""
 	def __init__(self, initial_state=np.zeros(6), desired_state=np.zeros(3)):
-		# could make a physical properties dictionary and a quadcopter properties dictionary
+		"""
+		Class constructor, define the properties inherent to a quadcopter
+		:param initial_state: so the initial position and orientation (quaternion) can be set
+		:param desired_state: desired position, assumes desired orientation is level
+		"""
+		# TODO: could make a physical properties dictionary and a quadcopter properties dictionary... maybe idk yet
 		self._quad_properties = {
 			"mass": 0.030,  																		# mass in kg
 			"gravity": 9.81,  																		# gravitational force
@@ -40,8 +54,9 @@ class Quadcopter:
 		self._state = Quadcopter.set_initial_state(initial_state)
 		self._desired_state = Quadcopter.set_desired_state(desired_state)
 		self._goal = np.array(self._desired_state) 							# necessary since by default python assigns by reference
-
+	#
 	# Helper methods
+	#
 	@staticmethod
 	def set_initial_state(s):
 		# x, y, z, xd, yd, zd, qw, qx, qy, qz, p, q, r
@@ -55,7 +70,12 @@ class Quadcopter:
 	# TODO: encapsulte in quaternion class
 	@staticmethod
 	def quat2rot(quat):
-		# converts a quaternion to a rotation matrix, result in in body frame
+		"""
+		A quaternion describes some rotation in 3-D space to get to a specific position, this function converts that
+		to a euler angle parameterized rotation matrix
+		:param quat: 1x4 quaternion
+		:return: 3x3 rotation matrix bRw
+		"""
 		q_norm = quat / np.linalg.norm(quat) 										# Frobenius / 2-norm is default
 		assert np.shape(q_norm) != "(4,)", "Quaternion vector dimension error"
 		q_hat = np.array([
@@ -69,6 +89,11 @@ class Quadcopter:
 
 	@staticmethod
 	def quat2euler(quat):
+		"""
+		Converts a quaternion to euler angles of roll, pitch, and yaw
+		:param quat: 1x4 quaternion
+		:return: 1x3 euler angle orientation
+		"""
 		assert str(np.shape(quat)) == "(4,)", "Not a valid quaterion in quat2euler"
 		R = Quadcopter.quat2rot(quat)
 		phi = np.arcsin(R[1, 2])
@@ -76,10 +101,21 @@ class Quadcopter:
 		psi = np.arctan2((-R[1, 0]/np.cos(phi)), (R[1, 1]/np.cos(phi)))
 		theta = np.arctan2((-R[0, 2]/np.cos(phi)), (R[2, 2]/np.cos(phi)))
 
-		return np.array([phi, theta, psi])
+		return np.array([phi, theta, psi]) 		# roll, pitch, yaw
 
+	#
 	# Behavioral methods
+	#
 	def simple_line_trajectory(self, cur_pos, stop_pos, finish_time, cur_time):
+		"""
+		Creates a trajectory by updating the desired state iteratively in the simulation. Doesn't take into account
+		the vehicle dynamics when generating
+		:param cur_pos: 1x3 current vehicle position
+		:param stop_pos: 1x3 desired vehicle position
+		:param finish_time: time allowed to finish the movement
+		:param cur_time: current time during the trajectory maneuver
+		:return:
+		"""
 		# create desired pos, vel, acc at a given point in time for a linear trajectory
 		vel_max = (stop_pos - cur_pos) * 2 / finish_time
 		if cur_time >= 0.0:
@@ -92,6 +128,10 @@ class Quadcopter:
 		return new_des_state
 
 	def pid_controller(self):
+		"""
+		Nested PID controller, the inner-loop is the attitute controller and the outer-loop is the position
+		:return: 1x1 desired sum of prop thrusts in body frame, 3x1 desired angular velocity in body frame
+		"""
 		# define the basic nested PID controller for the quadcopter
 		Kp_pos = np.array([15, 15, 30])
 		Kd_pos = np.array([12, 12, 10])
@@ -99,9 +139,10 @@ class Quadcopter:
 		Kp_ang = np.ones(3)*3000
 		Kd_ang = np.ones(3)*300
 
+		# Linear acceleration
 		acc_des = self._desired_state[6:9] + Kd_pos*(self._desired_state[3:6] - self._state[3:6]) + Kp_pos*(self._desired_state[0:3] - self._state[0:3]) 	# 3x1
 
-		# build desired roll, pitch, and yaw
+		# Build desired roll, pitch, and yaw
 		des_yaw = self._desired_state[9]
 		phi_des = (1/self._quad_properties["gravity"]) * (acc_des[0]*np.sin(des_yaw) - acc_des[1]*np.cos(des_yaw))
 		theta_des = (1/self._quad_properties["gravity"]) * (acc_des[0]*np.cos(des_yaw) + acc_des[1]*np.sin(des_yaw))
@@ -119,6 +160,12 @@ class Quadcopter:
 		return thrust, moment
 
 	def equations_of_motion(self, controller_thrust, angular_force):
+		"""
+		Calculates the rate of change of the vehicle outputting the derivative of the state
+		:param controller_thrust: 1x1 desired sum of prop thrusts in body frame
+		:param angular_force: 3x1 desired angular velocity in body frame
+		:return: 13x1 statedot, rate of change of current state due to controller inputs
+		"""
 		# define the quadcopter dynamics time step update
 		assert str(np.shape(angular_force)) == "(3,)", "Incorrect moment matrix dimensions"
 		forces = np.array([controller_thrust, angular_force[0], angular_force[1]]) 					# excludes the yaw force from physical limitations
@@ -195,6 +242,14 @@ class Quadcopter:
 		return statedot 					# 13x1
 
 	def simulation_step(self, s=0, t=0, total_sim_time=0):
+		"""
+		Combines a trajectory with a controller with a definition of dynamics to return a rate of change of the current
+		state for integration in main.py to get the new state s.
+		:param s: 13x1 current state
+		:param t: current time step for the odeint() solver
+		:param total_sim_time: total time allowed to finish the trajectory
+		:return: 13x1 statedot, rate of change of current state due to controller inputs
+		"""
 		self._state = s
 		assert str(np.shape(self._state)) == "(13,)", "Incorrect state vector size in simulation_step: {}".format(np.shape(self._state))
 		assert str(np.shape(self._desired_state)) == "(11,)", "Incorrect desired state vector size in simulation_step: {}".format(np.shape(self._desired_state))

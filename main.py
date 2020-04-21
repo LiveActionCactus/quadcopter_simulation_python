@@ -44,7 +44,9 @@ time = start_time
 num_quads = 1                                       # only supports 1 vehicle as of now
 quad_list = []
 
-start_pos = np.array([0.0, 0.0, 1.0, 0, 0, 0])		# x, y, z, qx, qy, qz
+# start_pos = np.array([0.0, 0.0, 1.0, 0, 0, 0])		# x, y, z, qx, qy, qz       Straight Line Test
+start_pos = np.array([0.5, 0.5, 0.0, 0, 0, 0])		# x, y, z, qx, qy, qz       Hover Test, YOU NEED TO SWAP TRAJECTORIES IN quadcopter.py simulation_step()
+
 # TODO: fix the straight line trajectory
 # TODO: fix bug in quat2rot line 59 if 800 sim steps and desired position is [0.5, 0.5, 1.5]
 end_pos = np.array([0.5, 0.5, 1.5])  				# x, y, z

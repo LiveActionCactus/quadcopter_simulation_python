@@ -127,6 +127,29 @@ class Quadcopter:
 
 		return new_des_state
 
+	def hover_trajectory(self, cur_pos, cur_time):
+		"""
+		Creates a hover, land, hover, land trajectory by using step inputs. This does not work if the steps are large (> 1.5-ish)
+		:param cur_pos: 1x3 desired vehicle position
+		:param cur_time: current time during the trajectroy maneuver
+		"""
+		if cur_time < 1.0:
+			pos = np.array([cur_pos[0], cur_pos[1], cur_pos[2]])
+		elif 1.0 <= cur_time < 4.0:
+			pos = np.array([cur_pos[0], cur_pos[1], 0.5])
+		elif 4.0 <= cur_time < 6.0:
+			pos = np.array([cur_pos[0], cur_pos[1], 0.0])
+		elif 6.0 <= cur_time < 8.0:
+			pos = np.array([cur_pos[0], cur_pos[1], 1.0])
+		else:
+			return np.array([cur_pos[0], cur_pos[1], 0.0])
+
+		vel = np.array([0.0, 0.0, 0.0])
+		acc = np.array([0.0, 0.0, 0.0])
+		new_des_state = np.concatenate((pos, vel, acc))
+
+		return new_des_state
+
 	def pid_controller(self):
 		"""
 		Nested PID controller, the inner-loop is the attitute controller and the outer-loop is the position
@@ -256,7 +279,8 @@ class Quadcopter:
 		assert str(np.shape(self._goal)) == "(11,)", "Incorrect goal vector size in simulation_step: {}".format(np.shape(self._goal))
 
 		# This is where the lego blocks go together. Change trajectories, controllers, and dynamics here.
-		new_des_state = self.simple_line_trajectory(self._state[0:3], self._goal[0:3], total_sim_time, t)
+		# new_des_state = self.simple_line_trajectory(self._state[0:3], self._goal[0:3], total_sim_time, t)			# straight line
+		new_des_state = self.hover_trajectory(self._state[0:3], t) 													# hover
 		self._desired_state[0:9] = new_des_state
 		thrust, moment = self.pid_controller()
 		statedot = self.equations_of_motion(thrust, moment)

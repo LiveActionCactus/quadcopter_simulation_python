@@ -17,6 +17,7 @@ import random
 # Project Libraries
 from quadcopter import Quadcopter
 
+
 class QuadTest(Quadcopter):
 	"""
 	Defines some testing metrics and inherits from the Quadcopter class in quadcopter.py.

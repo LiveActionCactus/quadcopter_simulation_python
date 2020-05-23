@@ -35,7 +35,7 @@ import plotting
 # TODO: include an integration health checker to stop the simulation if one of the values is going out of bounds
 
 # Set simulation parameters
-sim_steps = 750             # total steps
+sim_steps = 750            # total steps            # TODO: sometimes if the steps are too large the simulation errors out
 tstep = 0.01                # seconds per step
 cstep = 0.05                # controller integration window (sliding window, integration bounds)
 start_time = 0
@@ -45,7 +45,7 @@ num_quads = 1                                       # only supports 1 vehicle as
 quad_list = []
 
 # start_pos = np.array([0.0, 0.0, 1.0, 0, 0, 0])		# x, y, z, qx, qy, qz       Straight Line Test
-start_pos = np.array([0.5, 0.5, 0.0, 0, 0, 0])		# x, y, z, qx, qy, qz       Hover Test, YOU NEED TO SWAP TRAJECTORIES IN quadcopter.py simulation_step()
+start_pos = np.array([0.5, 0.5, 0.25, 0, 0, 0])		# x, y, z, qx, qy, qz       Hover Test, YOU NEED TO SWAP TRAJECTORIES IN quadcopter.py simulation_step()
 
 # TODO: fix the straight line trajectory
 # TODO: fix bug in quat2rot line 59 if 800 sim steps and desired position is [0.5, 0.5, 1.5]
